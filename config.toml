@@ -1,4 +1,21 @@
 title = "AHP Workforce Report"
 
+#Parameters relating to what data should be included/filtered from the source data
+#Also used for mapping
+[scope]
+org_codes = [
+    "RRP", "TAF", "RP4", "RP6", "RAP", 
+    "RAL", "RAN", "RNK", "RRV", "RKE"
+]
+org_shorts = [
+    "BEH", "C&I", "GOSH", "MEH", "NMUH",
+    "RFL", "RNOH", "T&P", "UCLH", "WH"
+]
+
 [nhs_workforce_statistics]
 rel_path = "nhs workforce statistics"
+
+sg2_code = "015"
+colname_ahp = "Staff Group 2"
+colname_role = "Care Setting"
+colname_band = "AfC Band"
