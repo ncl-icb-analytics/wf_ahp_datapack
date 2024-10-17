@@ -37,3 +37,4 @@ pathlib2==2.3.6
 
 # Non-template modules
 python-dotenv==1.0.1
+seaborn==0.13.2
