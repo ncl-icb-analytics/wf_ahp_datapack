@@ -4,6 +4,7 @@ Source: https://digital.nhs.uk/data-and-information/publications/statistical/nhs
 '''
 import os
 import pandas as pd
+from datetime import datetime as dt
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -26,25 +27,55 @@ def nwfs_staff_role_fuzzy_mapping(df_nwfs, settings):
 
     #Build the map of existing row names to front end names
     sr_map = {}
+    sr_shorthand_map = {}
 
     for role in df_flu.iterrows():
         fuzzy_name = role[1].iloc[0]
         front_name = role[1].iloc[1]
+        front_short = role[1].iloc[2]
 
         sr_values = fuzzy_search(df_nwfs, "staff_role", fuzzy_name)
         for sr in sr_values:
             sr_map[sr] = front_name
 
-    #Apply the mapping
+        sr_shorthand_map[front_name] = front_short
+
+    #Apply the frontend mapping
     df_nwfs["staff_role"] = df_nwfs["staff_role"].map(sr_map)
+
+    #Add the Role Shorthand column
+    df_nwfs["staff_role_shorthand"] = df_nwfs["staff_role"].map(
+        sr_shorthand_map)
     
     return df_nwfs
 
+#Remove the "Band" from the afc_band column and shorten the Non-AfC value
 def format_afc_col(val):
     if val[0] == "N":
         return "Non-AfC"
     else:
         return val.split(" ")[1]
+
+#Zero fill for column values that do not appear in the data
+def zero_fill(df, column_name, column_values):
+
+    #Create copy of the input data frame
+    df_zfed = df.copy()
+    num_of_cols = df_zfed.shape[1]
+    dummy_row = []
+    for i in range(num_of_cols):
+        dummy_row.append(None)
+
+    #Get list of values that do appear in the data
+    values_in_data = df[column_name].unique()
+
+    #Add dummy rows for the missing data
+    for value in column_values:
+        if value not in values_in_data:
+            df_zfed.loc[df_zfed.shape[0]] = dummy_row
+            df_zfed.loc[df_zfed.shape[0]-1][column_name] = 0
+
+    return df_zfed
 
 #Load the source data from the nwfs source files
 def load_nwfs_data(settings):
@@ -98,6 +129,21 @@ def load_nwfs_data(settings):
     #Format the AfC Band column
     df_src["afc_band"] = df_src["afc_band"].apply(format_afc_col)
 
+    #Add the Org Shorthand column
+    df_src["org_shorthand"] = df_src["org_code"].map(
+        dict(
+            map(
+                lambda i,j : (i,j) , 
+                settings["org_codes"], 
+                settings["org_shorts"]
+            )
+        )
+    )
+
+    #Add formatted period column
+    df_src["period_datapoint"] = pd.to_datetime(
+        df_src["period"]).dt.strftime('%b-%y')
+
     return df_src
 
 #Plot AHP Role against Band
@@ -130,6 +176,7 @@ def plot_role_by_band(df, settings):
             x="afc_band", 
             y="wte", 
             data=df_role,
+            order=afc_bands,
             ax=ax,
             color="#242853",
         )
@@ -150,12 +197,10 @@ def plot_role_by_band(df, settings):
     # Show the plot
     #plt.show()
 
-    plt.suptitle("AHP Role WTE by AfC Band", fontsize=20)
+    plt.suptitle("NCL AHP Role WTE by AfC Band", fontsize=20, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.98])
-    plt.savefig('./output/role_by_band/wte_by_afc_band.png', dpi=300, bbox_inches='tight')
-
-    # Export the NCL data
-    #df.to_csv("ncldata.csv", index=False)
+    plt.savefig('./output/role_by_band/wte_by_afc_band.png', 
+                dpi=300, bbox_inches='tight')
 
 #Plot AHP Role against Organisation
 def plot_role_by_org (df, settings):
@@ -173,43 +218,248 @@ def plot_role_by_org (df, settings):
     axes = axes.flatten()
 
     #Load list of orgs
-    org_codes = settings["org_codes"]
     org_shorts = settings["org_shorts"]
+    org_shorts.sort()
 
     # Loop over each axis and plot the barplots
     for i, ax in enumerate(axes):
         df_role = df.copy()[df["staff_role"] == ahp_roles[i]]
 
         #Aggregate data
-        df_role = df_role.groupby('org_code', as_index=False)['wte'].sum()
+        df_role = df_role.groupby('org_shorthand', as_index=False)['wte'].sum()
 
         sns.barplot(
-            x="org_code", 
+            x="org_shorthand", 
             y="wte", 
             data=df_role,
+            order=org_shorts,
             ax=ax,
             color="#242853",
         )
 
         #Format the x axis to be consistent for all graphs
-        ax.set_xticks(range(len(org_codes)))
-        ax.set_xticklabels(org_codes)
+        ax.set_xticks(range(len(org_shorts)))
+        ax.set_xticklabels(org_shorts, fontsize=8)
 
         #Remove box from graphs
         sns.despine()
 
         # Format the titles and axes
         ax.set_title(ahp_roles[i])
-        ax.set_xlabel('Provider')
+        ax.set_xlabel(None)
         ax.set_ylabel('WTE')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
     # Show the plot
     #plt.show()
 
-    plt.suptitle("AHP Role WTE by Provider", fontsize=20)
+    plt.suptitle("NCL AHP Role WTE by Provider", fontsize=20, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.98])
-    plt.savefig('./output/role_by_org/wte_by_afc_org.png', dpi=300, bbox_inches='tight')
+    plt.savefig('./output/role_by_org/wte_by_org.png', 
+                dpi=300, bbox_inches='tight')
+
+#Plot AHP Role against Organisation
+def plot_org_by_role (df, settings):
+
+    #Only consider latest data
+    df = df[df["period"] == df["period"].max()]
+
+    #Load list of AHP roles (shorthand)
+    df_flu = pd.read_csv("docs/nwfs_lookup.csv")
+    ahp_roles = df_flu["role_shorthand"].unique()
+    ahp_roles.sort()
+
+    # Initialize the figure and axes for a 4x3 grid
+    fig, axes = plt.subplots(3, 4, figsize=(18, 9))
+    axes = axes.flatten()
+
+    #Load list of orgs
+    org_shorts = settings["org_shorts"]
+
+    # Loop over each axis and plot the barplots
+    for i, ax in enumerate(axes):
+
+        if i < 10:
+            df_org = df.copy()[df["org_shorthand"] == org_shorts[i]]
+
+            #Aggregate data
+            df_org = df_org.groupby(
+                'staff_role_shorthand', as_index=False)['wte'].sum()
+
+            sns.barplot(
+                x="staff_role_shorthand", 
+                y="wte", 
+                data=df_org,
+                order=ahp_roles,
+                ax=ax,
+                color="#242853",
+            )
+
+            #Format the x axis to be consistent for all graphs
+            ax.set_xticks(range(len(ahp_roles)))
+            ax.set_xticklabels(ahp_roles, fontsize=8)
+
+            #Remove box from graphs
+            sns.despine()
+
+            # Format the titles and axes
+            ax.set_title(org_shorts[i])
+            ax.set_xlabel(None)
+            ax.set_ylabel('WTE')
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    # Add NCL overall as a plot (fig 10)
+    #Aggregate data
+    df_ncl = df.copy().groupby(
+        'staff_role_shorthand', as_index=False)['wte'].sum()
+
+    sns.barplot(
+        x="staff_role_shorthand", 
+        y="wte", 
+        data=df_ncl,
+        order=ahp_roles,
+        ax=axes[10],
+        color="#242853",
+    )
+
+    #Format the x axis to be consistent for all graphs
+    axes[10].set_xticks(range(len(ahp_roles)))
+    axes[10].set_xticklabels(ahp_roles, fontsize=8)
+
+    #Remove box from graphs
+    sns.despine()
+
+    # Format the titles and axes
+    axes[10].set_title("NCL")
+    axes[10].set_xlabel(None)
+    axes[10].set_ylabel('WTE')
+    axes[10].yaxis.set_major_locator(MaxNLocator(integer=True))
+
+    #Include key for Staff Roles
+    # table_data = df_flu[["role_shorthand", "staff_role_frontend"]].values
+    # sr_table = axes[11].table(
+    #     cellText=table_data, colLabels=None, 
+    #     loc='center', cellLoc='center',
+    #     bbox = [0, 0, 1, 1], fontsize=20)
+    # axes[11].axis("off")
+
+    table_data = df_flu[["role_shorthand", "staff_role_frontend"]].values
+    table_text = ""
+    for row in table_data:
+        spaces = 4 - len(row[0])
+        table_text += row[0] + " "*spaces + ": " + row[1] + "\n"
+    table_text = table_text[:-1]
+
+    axes[11].text(0, 0.5, table_text, family='Inconsolata', fontsize=12,
+                  horizontalalignment='left', verticalalignment='center')
+    axes[11].axis("off")
+
+    # Show the plot
+    #plt.show()
+
+    plt.suptitle("NCL Provider AHP WTE by Staff Role", 
+                 fontsize=20, fontweight="bold")
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    plt.savefig('./output/org_by_role/wte_by_role.png', 
+                dpi=300, bbox_inches='tight')#, transparent=True)
+
+#Plot year on year growth
+def plot_yoy_by_org (df, settings):
+
+    #Load list of orgs
+    org_shorts = settings["org_shorts"]
+    org_shorts.sort()
+
+    #Aggregate data
+    df_trend = df.groupby(['period_datapoint', 'org_shorthand'], as_index=False)['wte'].sum()
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    ncl_palette = sns.color_palette(
+        ["#8136CD", "#D12D8A", "#6CB52D", "#408DB4", "#6796f7",
+         "#7C2855", "#8A1538", "#006747", "#33599f", "#330072"])
+
+    sns.barplot(
+        x="org_shorthand", 
+        y="wte",
+        hue="period_datapoint",
+        data=df_trend,
+        order=org_shorts,
+        ax=ax,
+        palette=ncl_palette
+    )
+
+    #Format the x axis to be consistent for all graphs
+    ax.set_xticks(range(len(org_shorts)))
+    ax.set_xticklabels(org_shorts, fontsize=8)
+
+    #Remove box from graphs
+    sns.despine()
+
+    # Format the titles and axes
+    #ax.set_title(ahp_roles[i])
+    ax.set_xlabel(None)
+    ax.set_ylabel('WTE')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.legend(title="Period")
+
+    plt.suptitle("NCL AHPs by Provider Trend", fontsize=16, fontweight="bold")
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    plt.savefig('./output/trends/by_org.png', 
+                dpi=300, bbox_inches='tight')
+
+#Plot year on year growth
+def plot_yoy_by_role (df, settings):
+
+    #Sort the data by the x axis column
+    df.sort_values(by='staff_role_shorthand', inplace=True)
+
+    #Load list of AHP roles (shorthand)
+    df_flu = pd.read_csv("docs/nwfs_lookup.csv")
+    ahp_roles = df_flu["role_shorthand"].unique()
+    ahp_roles.sort()
+
+    #Aggregate data
+    df_trend = df.groupby(
+        ['period_datapoint', 'staff_role_shorthand'], as_index=False
+        )['wte'].sum()
+    
+    periods = len(df_trend["period_datapoint"].unique())
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    ncl_palette = sns.color_palette(
+        ["#8136CD", "#D12D8A", "#6CB52D", "#408DB4", "#6796f7",
+         "#7C2855", "#8A1538", "#006747", "#33599f", "#330072"][:periods])
+
+    sns.barplot(
+        x="staff_role_shorthand", 
+        y="wte",
+        hue="period_datapoint",
+        data=zero_fill(df_trend, "staff_role_shorthand", ahp_roles),
+        order=ahp_roles,
+        ax=ax,
+        palette=ncl_palette
+    )
+
+    #Format the x axis to be consistent for all graphs
+    ax.set_xticks(range(len(ahp_roles)))
+    ax.set_xticklabels(ahp_roles, fontsize=8)
+
+    #Remove box from graphs
+    sns.despine()
+
+    # Format the titles and axes
+    #ax.set_title(ahp_roles[i])
+    ax.set_xlabel(None)
+    ax.set_ylabel('WTE')
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.legend(title="Period")
+
+    plt.suptitle("NCL AHPs by AHP Role", fontsize=16, fontweight="bold")
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    plt.savefig('./output/trends/by_role.png', 
+                dpi=300, bbox_inches='tight')
 
 #Main function for the pipeline
 def nhs_wf_stats(settings):
@@ -217,10 +467,17 @@ def nhs_wf_stats(settings):
     #Load the data
     df_nwfs = load_nwfs_data(settings=settings)
 
-    #df_nwfs.to_csv("sample.csv", index=False)
+    df_nwfs.to_csv("ncldata.csv", index=False)
 
     #Plot AHP Staff Role by Band
-    #plot_role_by_band(df_nwfs, settings=settings)
+    plot_role_by_band(df_nwfs, settings=settings)
 
     #Plot AHP Staff Role by Organisation
-    plot_role_by_org (df_nwfs, settings)
+    plot_role_by_org(df_nwfs, settings)
+
+    #Plot Org AHP WTE by Staff Role
+    plot_org_by_role(df_nwfs, settings)
+
+    #Plot annual data
+    plot_yoy_by_org(df_nwfs, settings)
+    plot_yoy_by_role(df_nwfs, settings)
