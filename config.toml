@@ -14,8 +14,9 @@ org_shorts = [
 
 [nhs_workforce_statistics]
 rel_path = "nhs workforce statistics"
-
-sg2_code = "015"
 colname_ahp = "Staff Group 2"
 colname_role = "Care Setting"
 colname_band = "AfC Band"
+
+[pwr_trends]
+database = "Data_Lab_NCL_Dev"
