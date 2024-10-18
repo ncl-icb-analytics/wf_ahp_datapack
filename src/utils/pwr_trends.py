@@ -84,10 +84,16 @@ def plot_wte_by_contract(df, settings):
 
     dfs = [df_sub, df_temp]
 
-    #Pre-calculat x axis formatting variables
+    #Pre-calculate x axis formatting variables
     xticks_months = df_sub["fin_month"].to_list()
+    #Convert months into names
+    month_map = {1:"Apr", 2:"May", 3:"Jun", 4:"Jul",
+                 5:"Aug", 6:"Sep", 7:"Oct", 8:"Nov",
+                 9:"Dec", 10:"Jan", 11:"Feb", 12:"Mar"}
+    xticks_months = [month_map[item] for item in xticks_months]
+
     xticks_years = df_sub["fin_year"].unique()
-    xticks_years = ["\n\n" + s for s in xticks_years]
+    #xticks_years = ["\n\n\n" + s for s in xticks_years]
 
     # Loop over each axis and plot the barplots
     for i, ax in enumerate(axes):
@@ -96,46 +102,53 @@ def plot_wte_by_contract(df, settings):
 
         if i == 0:
             ax_name = "Substantive"
+            inc_legend = False
         else:
             ax_name = "Band & Agency"
+            inc_legend = True
 
         sns.lineplot(
             data=df_ax,
             x="period",
             y="wte",
             hue="contract",
+            legend=inc_legend,
             ax=ax
         )
+
+        if inc_legend:
+            ax.legend(title="Contract")
 
         #Remove box from graphs
         sns.despine()
 
         #Format the primary x axis (months)
         ax.set_xticks(range(len(xticks_months)))
-        ax.set_xticklabels(xticks_months, rotation=180)
-        ax.tick_params("x", width=1.5)
+        ax.set_xticklabels(xticks_months, rotation=90)
+        ax.tick_params("x", width=1)
         ax.set_xlabel(None)
 
         #Add the Year Labels
         sec = ax.secondary_xaxis(location=0)
         sec.set_xticks([5.5,17.5,26.5], labels=xticks_years)
-        sec.tick_params("x", length=0)
+        sec.tick_params("x", length=0, pad=35)
         
         #Add Seperators for the years
         sec2 = ax.secondary_xaxis(location=0)
         sec2.set_xticks([-0.5, 11.5, 23.5, 29.5], labels=[])
-        sec2.tick_params("x", length=40, width=1.5)
+        sec2.tick_params("x", length=40, width=1)
         ax.set_xlim(-0.6, 29.6)
 
         # Format the titles and axes
         ax.set_title(f"NCL Secondary Care AHP - SIP Trend ({ax_name})")
         ax.set_ylabel('WTE')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.grid(True, axis="y", color="lightgray", alpha=0.5)
 
     # Show the plot
     #plt.show()
 
-    plt.suptitle("NCL Secondary Care AHP - SIP Trend", fontsize=20, fontweight="bold")
+    #plt.suptitle("NCL Secondary Care AHP - SIP Trend", fontsize=20, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     plt.savefig('./output/pwr/wte_trend.png', 
                 dpi=300, bbox_inches='tight')
