@@ -199,7 +199,7 @@ def plot_role_by_band(df, settings):
 
     plt.suptitle("NCL AHP Role WTE by AfC Band", fontsize=20, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.98])
-    plt.savefig('./output/role_by_band/wte_by_afc_band.png', 
+    plt.savefig('./output/current/wte_by_afcband.png', 
                 dpi=300, bbox_inches='tight')
 
 #Plot AHP Role against Organisation
@@ -255,7 +255,7 @@ def plot_role_by_org (df, settings):
 
     plt.suptitle("NCL AHP Role WTE by Provider", fontsize=20, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.98])
-    plt.savefig('./output/role_by_org/wte_by_org.png', 
+    plt.savefig('./output/current/wte_by_org.png', 
                 dpi=300, bbox_inches='tight')
 
 #Plot AHP Role against Organisation
@@ -344,6 +344,7 @@ def plot_org_by_role (df, settings):
     # axes[11].axis("off")
 
     table_data = df_flu[["role_shorthand", "staff_role_frontend"]].values
+    table_data = sorted(table_data, key=lambda x: x[0])
     table_text = ""
     for row in table_data:
         spaces = 4 - len(row[0])
@@ -360,7 +361,7 @@ def plot_org_by_role (df, settings):
     plt.suptitle("NCL Provider AHP WTE by Staff Role", 
                  fontsize=20, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.98])
-    plt.savefig('./output/org_by_role/wte_by_role.png', 
+    plt.savefig('./output/current/wte_by_role.png', 
                 dpi=300, bbox_inches='tight')#, transparent=True)
 
 #Plot year on year growth
@@ -426,7 +427,8 @@ def plot_yoy_by_role (df, settings):
     
     periods = len(df_trend["period_datapoint"].unique())
 
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, axes = plt.subplots(
+        1, 2, figsize=(9, 4), gridspec_kw={"width_ratios": [2, 1]})
 
     ncl_palette = sns.color_palette(
         ["#8136CD", "#D12D8A", "#6CB52D", "#408DB4", "#6796f7",
@@ -438,23 +440,36 @@ def plot_yoy_by_role (df, settings):
         hue="period_datapoint",
         data=zero_fill(df_trend, "staff_role_shorthand", ahp_roles),
         order=ahp_roles,
-        ax=ax,
+        ax=axes[0],
         palette=ncl_palette
     )
 
     #Format the x axis to be consistent for all graphs
-    ax.set_xticks(range(len(ahp_roles)))
-    ax.set_xticklabels(ahp_roles, fontsize=8)
+    axes[0].set_xticks(range(len(ahp_roles)))
+    axes[0].set_xticklabels(ahp_roles, fontsize=8)
 
     #Remove box from graphs
     sns.despine()
 
     # Format the titles and axes
     #ax.set_title(ahp_roles[i])
-    ax.set_xlabel(None)
-    ax.set_ylabel('WTE')
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax.legend(title="Period")
+    axes[0].set_xlabel(None)
+    axes[0].set_ylabel('WTE')
+    axes[0].yaxis.set_major_locator(MaxNLocator(integer=True))
+    axes[0].legend(title="Period")
+
+    #Add Role mapping as a seperate ax
+    table_data = df_flu[["role_shorthand", "staff_role_frontend"]].values
+    table_data = sorted(table_data, key=lambda x: x[0])
+    table_text = ""
+    for row in table_data:
+        spaces = 4 - len(row[0])
+        table_text += row[0] + " "*spaces + ": " + row[1] + "\n"
+    table_text = table_text[:-1]
+
+    axes[1].text(0, 0.5, table_text, family='Inconsolata', fontsize=12,
+                  horizontalalignment='left', verticalalignment='center')
+    axes[1].axis("off")
 
     plt.suptitle("NCL AHPs by AHP Role", fontsize=16, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.98])
