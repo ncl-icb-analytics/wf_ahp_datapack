@@ -2,6 +2,28 @@
 SELECT
 	wte.[fyear] AS [fin_year],
 	wte.[month] AS [fin_month],
+	CONCAT(
+		CASE wte.[month]
+			WHEN 1 THEN 'Apr'
+			WHEN 2 THEN 'May'
+			WHEN 3 THEN 'Jun'
+			WHEN 4 THEN 'Jul'
+			WHEN 5 THEN 'Aug'
+			WHEN 6 THEN 'Sep'
+			WHEN 7 THEN 'Oct'
+			WHEN 8 THEN 'Nov'
+			WHEN 9 THEN 'Dec'
+			WHEN 10 THEN 'Jan'
+			WHEN 11 THEN 'Feb'
+			WHEN 12 THEN 'Mar'
+        END,
+		'-',
+		CASE
+			WHEN wte.[month] >= 10
+			THEN RIGHT(wte.[fyear], 2)
+			ELSE RIGHT(LEFT(wte.[fyear], 4), 2)
+		END
+	) AS [period_datapoint],
 	--wte.[org_code],
 	--wte.[org_name],
 	wte.[contract],
