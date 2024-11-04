@@ -11,7 +11,11 @@ settings = load_runtime_settings()
 
 # NHS Workforce Statistics Pipeline
 if True:
-    #nhs_wf_stats(settings=settings)
+    print("\nExecuting NHS Workforce Statistics Pipeline.")
+    nhs_wf_stats(settings=settings)
 
+    print("\nExecuting PWR Pipeline.")
     pwr_trends(settings=settings)
+
+    print("\nFinished executing pipelines.\n")
 

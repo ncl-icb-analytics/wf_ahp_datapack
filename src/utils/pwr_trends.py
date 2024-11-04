@@ -248,8 +248,6 @@ def plot_yoy_by_role_raw(df, settings):
 #Main function for the pipeline
 def pwr_trends(settings):
 
-    print("Executing PWR Trends Pipeline\n")
-
     #Load the data from the Sandpit
     df_pwr = load_pwr_data(settings=settings)
 
