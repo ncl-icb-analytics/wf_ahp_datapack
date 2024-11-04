@@ -1,4 +1,5 @@
 import datetime
+import json
 import toml
 from os import getenv
 from dotenv import load_dotenv
@@ -21,6 +22,9 @@ def load_runtime_settings():
 
     #Store both the config and env settings in a dict
     settings = {
+        "pipeline_nwfs": getenv("PIPELINE_NWFS") in ["True", "true", 1],
+        "pipeline_pwr": getenv("PIPELINE_PWR") in ["True", "true", 1],
+
         "org_codes": config[base_scope]["org_codes"],
         "org_shorts": config[base_scope]["org_shorts"],
         "sql_address": getenv("SQL_ADDRESS"),

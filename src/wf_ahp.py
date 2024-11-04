@@ -10,12 +10,14 @@ from utils.pwr_trends import *
 settings = load_runtime_settings()
 
 # NHS Workforce Statistics Pipeline
-if True:
+if settings["pipeline_nwfs"]:
     print("\nExecuting NHS Workforce Statistics Pipeline.")
     nhs_wf_stats(settings=settings)
 
+# NHS Workforce Statistics Pipeline
+if settings["pipeline_pwr"]:
     print("\nExecuting PWR Pipeline.")
     pwr_trends(settings=settings)
 
-    print("\nFinished executing pipelines.\n")
+print("\nFinished executing pipelines.\n")
 
