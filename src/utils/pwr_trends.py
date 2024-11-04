@@ -48,6 +48,27 @@ def nwfs_staff_role_fuzzy_mapping(df, settings):
     
     return df
 
+#Zero fill for column values that do not appear in the data
+def zero_fill(df, column_name, column_values):
+
+    #Create copy of the input data frame
+    df_zfed = df.copy()
+    num_of_cols = df_zfed.shape[1]
+    dummy_row = []
+    for i in range(num_of_cols):
+        dummy_row.append(None)
+
+    #Get list of values that do appear in the data
+    values_in_data = df[column_name].unique()
+
+    #Add dummy rows for the missing data
+    for value in column_values:
+        if value not in values_in_data:
+            df_zfed.loc[df_zfed.shape[0]] = dummy_row
+            df_zfed.loc[df_zfed.shape[0]-1][column_name] = 0
+
+    return df_zfed
+
 #Load and execute the PWR SQL Query
 def load_pwr_data(settings):
     #Load the query script
@@ -140,7 +161,8 @@ def plot_wte_by_contract(df, settings):
         ax.set_xlim(-0.6, 29.6)
 
         # Format the titles and axes
-        ax.set_title(f"NCL Secondary Care AHP - SIP Trend ({ax_name})")
+        ax.set_title(f"NCL Secondary Care AHP - SIP Trend ({ax_name})", 
+                     fontweight="bold")
         ax.set_ylabel('WTE')
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         ax.grid(True, axis="y", color="lightgray", alpha=0.5)
@@ -153,6 +175,76 @@ def plot_wte_by_contract(df, settings):
     plt.savefig('./output/pwr/wte_trend.png', 
                 dpi=300, bbox_inches='tight')
 
+#Plot function for vacancy by AHP staff role
+def plot_yoy_by_role_raw(df, settings):
+    #Sort the data by the x axis column
+    df.sort_values(by='staff_role_shorthand', inplace=True)
+
+    #Load list of AHP roles (shorthand)
+    df_flu = pd.read_csv("docs/nwfs_lookup.csv")
+    ahp_roles = df_flu["role_shorthand"].unique()
+    ahp_roles.sort()
+
+    #Filter to only data with the most recent month
+    month_latest = df[df["fin_year"] == df["fin_year"].max()]["fin_month"].max()
+    df_month = df[df["fin_month"] == month_latest]
+
+    #Aggregate data
+    df_trend = df_month.groupby(
+        ['period_datapoint', 'staff_role_shorthand'], as_index=False
+        )['vacancy'].sum()
+    
+    periods = len(df_trend["period_datapoint"].unique())
+
+    fig, axes = plt.subplots(
+        1, 2, figsize=(9, 4), gridspec_kw={"width_ratios": [2, 1]})
+
+    ncl_palette = sns.color_palette(
+        ["#8136CD", "#D12D8A", "#6CB52D", "#408DB4", "#6796f7",
+         "#7C2855", "#8A1538", "#006747", "#33599f", "#330072"][:periods])
+
+    sns.barplot(
+        x="staff_role_shorthand", 
+        y="vacancy",
+        hue="period_datapoint",
+        data=zero_fill(df_trend, "staff_role_shorthand", ahp_roles),
+        order=ahp_roles,
+        ax=axes[0],
+        palette=ncl_palette
+    )
+
+    #Format the x axis to be consistent for all graphs
+    axes[0].set_xticks(range(len(ahp_roles)))
+    axes[0].set_xticklabels(ahp_roles, fontsize=8)
+
+    #Remove box from graphs
+    sns.despine()
+
+    # Format the titles and axes
+    #ax.set_title(ahp_roles[i])
+    axes[0].set_xlabel(None)
+    axes[0].set_ylabel('Vacancy (WTE)')
+    axes[0].yaxis.set_major_locator(MaxNLocator(integer=True))
+    axes[0].legend(title="Period")
+
+    #Add Role mapping as a seperate ax
+    table_data = df_flu[["role_shorthand", "staff_role_frontend"]].values
+    table_data = sorted(table_data, key=lambda x: x[0])
+    table_text = ""
+    for row in table_data:
+        spaces = 4 - len(row[0])
+        table_text += row[0] + " "*spaces + ": " + row[1] + "\n"
+    table_text = table_text[:-1]
+
+    axes[1].text(0, 0.5, table_text, family='Inconsolata', fontsize=12,
+                  horizontalalignment='left', verticalalignment='center')
+    axes[1].axis("off")
+
+    plt.suptitle("NCL AHPs Vacancy (WTE) by AHP Role", fontsize=16, fontweight="bold")
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    plt.savefig('./output/pwr/vac_raw_by_role.png', 
+                dpi=300, bbox_inches='tight')
+
 #Main function for the pipeline
 def pwr_trends(settings):
 
@@ -161,4 +253,10 @@ def pwr_trends(settings):
     #Load the data from the Sandpit
     df_pwr = load_pwr_data(settings=settings)
 
+    #Line chart showing trend by contract
     plot_wte_by_contract(df_pwr, settings)
+
+    #print(df_pwr.head())
+
+    #Bar plot showing year on year growth for each role
+    plot_yoy_by_role_raw(df_pwr, settings)
