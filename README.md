@@ -39,6 +39,13 @@ Provided the data is prepared as outlined in the previous section:
 * The terminal will announce the status of the current execution.
 * After execution, the generated output can be found in the output folder.
 
+## .env settings
+The following settings should be present in the .env file:
+
+* SQL_ADDRESS: Set to a string of the connection address of the NCL Sandpit ("XXXXXXXXXX01.AD.ELC.NHS.UK,1460")
+* PIPELINE_NWFS: Set to True or False if you want the NHS Workforce Statistics Pipeline to execute
+* PIPELINE_PWR: Set to True or False if you want the PWR Pipeline to execute
+
 ## Licence
 This repository is dual licensed under the [Open Government v3]([https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) & MIT. All code can outputs are subject to Crown Copyright.
 
