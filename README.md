@@ -32,6 +32,7 @@ NOTE: The code in it's current state will process all files in the data/nhs work
 Provided the data is prepared as outlined in the previous section:
 
 * Enable the virtual environment, this can be done using the following commands in your terminal (Ctrl + Shift + '):
+    * python -m venv venv
     * Set-ExecutionPolicy Unrestricted -Scope Process
     * venv/Scripts/activate
     * pip install -r requirements.txt
